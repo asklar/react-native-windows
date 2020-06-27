@@ -22,8 +22,11 @@
     <ApplicationTypeRevision>10.0</ApplicationTypeRevision>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <WindowsTargetPlatformMinVersion>10.0.17134.0</WindowsTargetPlatformMinVersion>
+<!--
     <IsWinUIAlpha Condition="'$(IsWinUIAlpha)' == '' And '$(UseWinUI3)'=='true'">true</IsWinUIAlpha>
     <WindowsKitsPath Condition="'$(IsWinUIAlpha)' == 'true'">WinUI-Alpha-Projects-Don-t-Use-SDK-Xaml-Tools</WindowsKitsPath>
+-->
+    <RunAutolinkCheck>false</RunAutolinkCheck>
   </PropertyGroup>
   <PropertyGroup Label="FromWinUI3_VSIX">
     <ProjectName>Playground-win32</ProjectName>
