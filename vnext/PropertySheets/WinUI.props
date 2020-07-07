@@ -14,7 +14,7 @@
     <WinUIPackageProps>$(WinUIPackageName).$(WinUIPackageVersion)\build\native\$(WinUIPackageName).props</WinUIPackageProps>
 
     <!-- Enlighten C# code about WinUI3 -->
-    <DefineConstants Condition="'$(UseWinUI3)'=='true'">USE_WINUI3;$(DefineConstants)</DefineConstants>
+    <DefineConstants>USE_WINUI3;$(DefineConstants)</DefineConstants>
 
     <IsWinUIAlpha Condition="'$(IsWinUIAlpha)' == ''">true</IsWinUIAlpha>
     <WindowsKitsPath Condition="'$(IsWinUIAlpha)' == 'true'">WinUI-Alpha-Projects-Don-t-Use-SDK-Xaml-Tools</WindowsKitsPath>
