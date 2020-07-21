@@ -18,7 +18,8 @@
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.UI.Core.h>
 #include <winrt/Windows.UI.Input.h>
-#ifdef USE_WINUI3
+
+#ifdef IXP_EXPERIMENTAL
 #include <winrt/Microsoft.UI.Input2.Experimental.h>
 #endif
 namespace react {
@@ -204,7 +205,7 @@ TouchEventHandler::ReactPointer TouchEventHandler::CreateReactPointer(
   pointer.target = tag;
   pointer.identifier = m_touchId++;
   pointer.pointerId = point.PointerId();
-#ifndef USE_WINUI3
+#ifndef IXP_EXPERIMENTAL
   pointer.deviceType = point.PointerDevice().PointerDeviceType();
 #else
   pointer.deviceType = point.PointerDeviceType();
@@ -213,7 +214,7 @@ TouchEventHandler::ReactPointer TouchEventHandler::CreateReactPointer(
   pointer.isRightButton = props.IsRightButtonPressed();
   pointer.isMiddleButton = props.IsMiddleButtonPressed();
   pointer.isHorizontalScrollWheel = props.IsHorizontalMouseWheel();
-#ifndef USE_WINUI3
+#ifndef IXP_EXPERIMENTAL
   pointer.isEraser = props.IsEraser();
 #endif
 
