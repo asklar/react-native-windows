@@ -26,6 +26,7 @@
 #include <Views/TextViewManager.h>
 #include <Views/ViewViewManager.h>
 #include <Views/VirtualTextViewManager.h>
+#include <Views/ModalViewManager.h>
 
 namespace Microsoft::ReactNative {
 
@@ -36,6 +37,7 @@ void AddStandardViewManagers(
   viewManagers.push_back(std::make_unique<DatePickerViewManager>(context));
   viewManagers.push_back(std::make_unique<FlyoutViewManager>(context));
   viewManagers.push_back(std::make_unique<ImageViewManager>(context));
+  viewManagers.push_back(std::make_unique<ModalViewManager>(context));
   viewManagers.push_back(std::make_unique<PickerViewManager>(context));
   viewManagers.push_back(std::make_unique<PopupViewManager>(context));
   viewManagers.push_back(std::make_unique<RawTextViewManager>(context));
