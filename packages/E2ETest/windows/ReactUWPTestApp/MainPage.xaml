@@ -8,6 +8,6 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-    <react:ReactRootView x:Name="myRootView" ComponentName="ReactUWPTestApp"
+    <react:ReactRootView x:Name="myRootView" ComponentName="RNTesterApp"
         Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Height="500"/>
 </Page>

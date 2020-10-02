@@ -30,7 +30,7 @@ namespace ReactUWPTestApp
             InstanceSettings.UseWebDebugger = false;
             InstanceSettings.UseFastRefresh = false;
 #else
-            JavaScriptMainModuleName = "app/index";
+            JavaScriptMainModuleName = "Samples/rntester";
             InstanceSettings.UseWebDebugger = true;
             InstanceSettings.UseFastRefresh = true;
 #endif

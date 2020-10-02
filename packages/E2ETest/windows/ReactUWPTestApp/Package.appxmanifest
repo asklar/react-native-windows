@@ -9,7 +9,7 @@
   <Identity
     Name="ReactUWPTestApp"
     Publisher="CN=RNWTest"
-    Version="1.0.0.0" />
+    Version="1.0.3.0" />
 
   <mp:PhoneIdentity PhoneProductId="87fc81ab-83a8-412b-bec2-37f8f47d4b06" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
@@ -32,10 +32,10 @@
       Executable="$targetnametoken$.exe"
       EntryPoint="ReactUWPTestApp.App">
       <uap:VisualElements
-        DisplayName="ReactUWPTestApp"
+        DisplayName="React Native for Windows RNTester"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png"
-        Description="ReactUWPTestApp"
+        Description="React Native for Windows RNTester"
         BackgroundColor="transparent">
         <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png"/>
         <uap:SplashScreen Image="Assets\SplashScreen.png" />
