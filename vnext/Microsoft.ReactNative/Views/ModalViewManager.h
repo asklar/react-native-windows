@@ -11,7 +11,7 @@ class ModalViewManager : public FrameworkElementViewManager {
   using Super = FrameworkElementViewManager;
 
  public:
-  ModalViewManager(const std::shared_ptr<IReactInstance> &reactInstance);
+  ModalViewManager(const Mso::React::IReactContext &context);
 
   const char *GetName() const override;
   folly::dynamic GetNativeProps() const override;
