@@ -56,6 +56,10 @@ const ComponentExamples: Array<RNTesterExample> = [
   //   module: require('../examples/Modal/ModalExample'),
   // },
   {
+    key: 'Modal',
+    module: require('react-native/RNTester/js/examples/Modal/ModalExample'),
+  },
+  {
     key: 'MultiColumnExample',
     category: 'ListView',
     module: require('../examples/MultiColumn/MultiColumnExample'),
