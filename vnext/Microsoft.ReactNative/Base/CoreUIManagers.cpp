@@ -13,6 +13,7 @@
 #include <Views/DatePickerViewManager.h>
 #include <Views/FlyoutViewManager.h>
 #include <Views/Image/ImageViewManager.h>
+#include <Views/ModalViewManager.h>
 #include <Views/PickerViewManager.h>
 #include <Views/PopupViewManager.h>
 #include <Views/RawTextViewManager.h>
@@ -26,7 +27,6 @@
 #include <Views/TextViewManager.h>
 #include <Views/ViewViewManager.h>
 #include <Views/VirtualTextViewManager.h>
-#include <Views/ModalViewManager.h>
 
 namespace Microsoft::ReactNative {
 

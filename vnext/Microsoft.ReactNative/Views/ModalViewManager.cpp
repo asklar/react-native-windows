@@ -2,12 +2,9 @@
 // Licensed under the MIT License.
 
 #include "pch.h"
-#include <cdebug.h>
-#include <Views/ShadowNodeBase.h>
 #include "ModalViewManager.h"
-#include "TouchEventHandler.h"
-#include <ReactRootView.h>
 #include <Modules/NativeUIManager.h>
+#include <ReactRootView.h>
 #include <UI.Xaml.Controls.Primitives.h>
 #include <UI.Xaml.Controls.h>
 #include <UI.Xaml.Documents.h>
@@ -15,7 +12,10 @@
 #include <UI.Xaml.Media.h>
 #include <Utils/Helpers.h>
 #include <Utils/ValueUtils.h>
+#include <Views/ShadowNodeBase.h>
+#include <cdebug.h>
 #include <winrt/Windows.UI.Core.h>
+#include "TouchEventHandler.h"
 
 namespace winrt {
 using namespace xaml::Controls::Primitives;
@@ -36,7 +36,8 @@ class ModalShadowNode : public ShadowNodeBase {
   virtual void RemoveChildAt(int64_t indexToRemove) override;
   void updateProperties(const folly::dynamic &&props) override;
 
-  static void OnModalClosed(const Mso::React::IReactContext &context, int64_t tag);
+  static void OnRequestClose(const Mso::React::IReactContext &context, int64_t tag);
+  static void OnShow(const Mso::React::IReactContext &context, int64_t tag);
   winrt::Windows::Foundation::Size GetAppWindowSize();
   xaml::Controls::ContentControl GetControl();
   void UpdateTabStops();
@@ -81,7 +82,7 @@ void ModalShadowNode::createView() {
 
   m_popupClosedRevoker = popup.Closed(winrt::auto_revoke, [=](auto &&, auto &&) {
     if (!m_updating)
-      OnModalClosed(GetViewManager()->GetReactContext(), m_tag);
+      OnRequestClose(GetViewManager()->GetReactContext(), m_tag);
   });
 
   m_popupOpenedRevoker = popup.Opened(winrt::auto_revoke, [=](auto &&, auto &&) {
@@ -113,7 +114,7 @@ void ModalShadowNode::createView() {
         auto classname = winrt::get_class_name(c);
         cwdebug << classname.c_str() << endl;
       }
-      
+
       UpdateLayout();
       UpdateTabStops();
     }
@@ -184,8 +185,7 @@ void ModalShadowNode::updateProperties(const folly::dynamic &&props) {
 
     if (propertyName == "visible") {
       isOpenProp = &propertyValue;
-    }
-    else if (propertyName == "autoFocus") {
+    } /*else if (propertyName == "autoFocus") {
       if (propertyValue.isBool()) {
         m_autoFocus = propertyValue.asBool();
       } else if (propertyValue.isNull()) {
@@ -206,7 +206,7 @@ void ModalShadowNode::updateProperties(const folly::dynamic &&props) {
         popup.ClearValue(winrt::Popup::IsLightDismissEnabledProperty());
       }
       needsTabUpdate = true;
-    }
+    }*/
   }
 
   if (needsLayoutUpdate) {
@@ -228,16 +228,18 @@ void ModalShadowNode::updateProperties(const folly::dynamic &&props) {
   m_updating = false;
 }
 
-/*static*/ void ModalShadowNode::OnModalClosed(const Mso::React::IReactContext &context, int64_t tag) {
+/*static*/ void ModalShadowNode::OnRequestClose(const Mso::React::IReactContext &context, int64_t tag) {
   folly::dynamic eventData = folly::dynamic::object("target", tag);
   context.DispatchEvent(tag, "topRequestClose", std::move(eventData));
 
   folly::dynamic eventJson = folly::dynamic::object("target", tag);
-  folly::dynamic params = folly::dynamic::array(tag, "onRquestClose", eventJson);
+  folly::dynamic params = folly::dynamic::array(tag, "onRequestClose", eventJson);
   context.CallJSFunction("RCTEventEmitter", "receiveEvent", std::move(params));
 }
 
-void ModalShadowNode::UpdateLayout() {
+/*static*/ void ModalShadowNode::OnShow(const Mso::React::IReactContext &context, int64_t tag) {}
+
+  void ModalShadowNode::UpdateLayout() {
   auto popup = GetView().as<winrt::Popup>();
 
   // center relative to anchor
@@ -303,8 +305,10 @@ const char *ModalViewManager::GetName() const {
 folly::dynamic ModalViewManager::GetNativeProps() const {
   auto props = Super::GetNativeProps();
 
-  props.update(folly::dynamic::object("animationType", "string"));
-  //props.update(folly::dynamic::object("isOpen", "boolean")("isLightDismissEnabled", "boolean")("autoFocus", "boolean")(
+  props.update(folly::dynamic::object("animationType", "string")
+    ("transparent", "boolean"));
+  // props.update(folly::dynamic::object("isOpen", "boolean")("isLightDismissEnabled", "boolean")("autoFocus",
+  // "boolean")(
   //    "horizontalOffset", "number")("verticalOffset", "number")("target", "number"));
 
   return props;
@@ -323,13 +327,13 @@ XamlView ModalViewManager::CreateViewCore(int64_t /*tag*/) {
   popup.Child(border);
   border.Child(control);
 
-  popup.Loaded([popup](auto&&, auto &&) {
+  popup.Loaded([popup](auto &&, auto &&) {
     winrt::FrameworkElement parent = popup;
     while (!parent.try_as<winrt::Microsoft::ReactNative::ReactRootView>()) {
       parent = parent.Parent().as<xaml::FrameworkElement>();
     }
     auto rootView = parent.as<winrt::Microsoft::ReactNative::ReactRootView>();
-    rootView.Visibility(xaml::Visibility::Collapsed);
+    // rootView.Visibility(xaml::Visibility::Collapsed);
   });
   return popup;
 }
@@ -341,10 +345,10 @@ void ModalViewManager::SetLayoutProps(
     float top,
     float width,
     float height) {
-  auto& node = static_cast<ModalShadowNode&>(nodeToUpdate);
+  auto &node = static_cast<ModalShadowNode &>(nodeToUpdate);
   auto popup = viewToUpdate.as<winrt::Popup>();
   auto control = node.GetControl();
-  //popup.Child().as<xaml::Controls::ContentControl>();
+  // popup.Child().as<xaml::Controls::ContentControl>();
 
   control.Width(width);
   control.Height(height);
@@ -354,8 +358,9 @@ void ModalViewManager::SetLayoutProps(
 
 folly::dynamic ModalViewManager::GetExportedCustomDirectEventTypeConstants() const {
   auto directEvents = Super::GetExportedCustomDirectEventTypeConstants();
-//  directEvents["topDismiss"] = folly::dynamic::object("registrationName", "onDismiss");
+  //  directEvents["topDismiss"] = folly::dynamic::object("registrationName", "onDismiss");
   directEvents["topRequestClose"] = folly::dynamic::object("registrationName", "onRequestClose");
+  directEvents["topShow"] = folly::dynamic::object("registrationName", "onShow");
   return directEvents;
 }
 
