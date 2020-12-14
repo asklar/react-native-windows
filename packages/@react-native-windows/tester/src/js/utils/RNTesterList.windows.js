@@ -50,14 +50,10 @@ const ComponentExamples: Array<RNTesterExample> = [
     category: 'Basic',
     module: require('../examples/Image/ImageExample'),
   },
-  // {
-  //   key: 'ModalExample',
-  //   category: 'UI',
-  //   module: require('../examples/Modal/ModalExample'),
-  // },
   {
-    key: 'Modal',
-    module: require('react-native/RNTester/js/examples/Modal/ModalExample'),
+    key: 'ModalExample',
+    category: 'UI',
+    module: require('../examples/Modal/ModalExample'),
   },
   {
     key: 'MultiColumnExample',
