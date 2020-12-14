@@ -4,6 +4,7 @@
 #include "pch.h"
 #include "ModalViewManager.h"
 #include <Modules/NativeUIManager.h>
+#include <Modules/PaperUIManagerModule.h>
 #include <ReactRootView.h>
 #include <UI.Xaml.Controls.Primitives.h>
 #include <UI.Xaml.Controls.h>
@@ -21,7 +22,7 @@ namespace winrt {
 using namespace xaml::Controls::Primitives;
 } // namespace winrt
 
-namespace react::uwp {
+namespace Microsoft::ReactNative {
 
 class ModalShadowNode : public ShadowNodeBase {
   using Super = ShadowNodeBase;
@@ -34,7 +35,7 @@ class ModalShadowNode : public ShadowNodeBase {
   void AddView(ShadowNode &child, int64_t index) override;
   virtual void removeAllChildren() override;
   virtual void RemoveChildAt(int64_t indexToRemove) override;
-  void updateProperties(const folly::dynamic &&props) override;
+  void updateProperties(winrt::Microsoft::ReactNative::JSValueObject & props) override;
 
   static void OnRequestClose(const Mso::React::IReactContext &context, int64_t tag);
   static void OnShow(const Mso::React::IReactContext &context, int64_t tag);
@@ -93,7 +94,7 @@ void ModalShadowNode::createView() {
       // popups/flyouts. We apply this translation on open of the popup.
       // (Translation is only supported on RS5+, eg. IUIElement9)
       if (auto uiElement9 = GetView().try_as<xaml::IUIElement9>()) {
-        auto numOpenPopups = CountOpenPopups();
+        auto numOpenPopups = react::uwp::CountOpenPopups();
         if (numOpenPopups > 0) {
           winrt::Numerics::float3 translation{0, 0, (float)16 * numOpenPopups};
           popup.Translation(translation);
@@ -107,12 +108,12 @@ void ModalShadowNode::createView() {
       });
       auto root = popup.Parent().as<xaml::FrameworkElement>();
       if (auto xr = root.XamlRoot()) {
-        cwdebug << winrt::get_class_name(xr).c_str() << endl;
+        cwdebug << winrt::get_class_name(xr).c_str() << std::endl;
       }
       auto c = root;
       while (c = c.Parent().try_as<xaml::FrameworkElement>()) {
         auto classname = winrt::get_class_name(c);
-        cwdebug << classname.c_str() << endl;
+        cwdebug << classname.c_str() << std::endl;
       }
 
       UpdateLayout();
@@ -168,7 +169,7 @@ void ModalShadowNode::removeAllChildren() {
   m_previewKeyboardEventHandlerOnRoot->unhook();
 }
 
-void ModalShadowNode::updateProperties(const folly::dynamic &&props) {
+void ModalShadowNode::updateProperties(winrt::Microsoft::ReactNative::JSValueObject& props) {
   m_updating = true;
 
   auto popup = GetView().as<winrt::Popup>();
@@ -177,14 +178,14 @@ void ModalShadowNode::updateProperties(const folly::dynamic &&props) {
 
   bool needsLayoutUpdate = false;
   bool needsTabUpdate = false;
-  const folly::dynamic *isOpenProp = nullptr;
+  std::optional<bool> isOpenProp;
 
-  for (auto &pair : props.items()) {
-    const std::string &propertyName = pair.first.getString();
-    const folly::dynamic &propertyValue = pair.second;
+  for (auto &pair : props) {
+    const std::string &propertyName = pair.first;
+    const auto &propertyValue = pair.second;
 
     if (propertyName == "visible") {
-      isOpenProp = &propertyValue;
+      isOpenProp = propertyValue.AsBoolean();
     } /*else if (propertyName == "autoFocus") {
       if (propertyValue.isBool()) {
         m_autoFocus = propertyValue.asBool();
@@ -217,14 +218,11 @@ void ModalShadowNode::updateProperties(const folly::dynamic &&props) {
   }
 
   // IsOpen needs to be set after IsLightDismissEnabled for light-dismiss to work
-  if (isOpenProp != nullptr) {
-    if (isOpenProp->isBool())
-      popup.IsOpen(isOpenProp->getBool());
-    else if (isOpenProp->isNull())
-      popup.ClearValue(winrt::Popup::IsOpenProperty());
+  if (isOpenProp.has_value()) {
+      popup.IsOpen(isOpenProp.value());
   }
 
-  Super::updateProperties(std::move(props));
+  Super::updateProperties(props);
   m_updating = false;
 }
 
@@ -244,7 +242,7 @@ void ModalShadowNode::updateProperties(const folly::dynamic &&props) {
 
   // center relative to anchor
   if (m_targetTag > 0) {
-    if (auto uiManager = static_cast<NativeUIManager *>(GetViewManager()->GetReactContext().NativeUIManager())) {
+    if (auto uiManager = GetNativeUIManager(GetViewManager()->GetReactContext()).lock()) {
       auto pNativeUIManagerHost = uiManager->getHost();
       ShadowNodeBase *pShadowNodeChild =
           static_cast<ShadowNodeBase *>(pNativeUIManagerHost->FindShadowNodeForTag(m_targetTag));
@@ -298,23 +296,20 @@ winrt::Size ModalShadowNode::GetAppWindowSize() {
 
 ModalViewManager::ModalViewManager(const Mso::React::IReactContext &context) : Super(context) {}
 
-const char *ModalViewManager::GetName() const {
-  return "RCTModalHostView";
+const wchar_t *ModalViewManager::GetName() const {
+  return L"RCTModalHostView";
 }
 
-folly::dynamic ModalViewManager::GetNativeProps() const {
-  auto props = Super::GetNativeProps();
-
-  props.update(folly::dynamic::object("animationType", "string")
-    ("transparent", "boolean"));
+void ModalViewManager::GetNativeProps(const winrt::Microsoft::ReactNative::IJSValueWriter &writer) const {
+  Super::GetNativeProps(writer);
+  winrt::Microsoft::ReactNative::WriteProperty(writer, L"animationType", L"string");
+  winrt::Microsoft::ReactNative::WriteProperty(writer, L"transparent", L"boolean");
   // props.update(folly::dynamic::object("isOpen", "boolean")("isLightDismissEnabled", "boolean")("autoFocus",
   // "boolean")(
   //    "horizontalOffset", "number")("verticalOffset", "number")("target", "number"));
-
-  return props;
 }
 
-facebook::react::ShadowNode *ModalViewManager::createShadow() const {
+ShadowNode *ModalViewManager::createShadow() const {
   return new ModalShadowNode();
 }
 
@@ -356,12 +351,20 @@ void ModalViewManager::SetLayoutProps(
   Super::SetLayoutProps(nodeToUpdate, viewToUpdate, left, top, width, height);
 }
 
-folly::dynamic ModalViewManager::GetExportedCustomDirectEventTypeConstants() const {
-  auto directEvents = Super::GetExportedCustomDirectEventTypeConstants();
+void ModalViewManager::GetExportedCustomDirectEventTypeConstants(
+    const winrt::Microsoft::ReactNative::IJSValueWriter &writer) const {
+  Super::GetExportedCustomDirectEventTypeConstants(writer);
   //  directEvents["topDismiss"] = folly::dynamic::object("registrationName", "onDismiss");
-  directEvents["topRequestClose"] = folly::dynamic::object("registrationName", "onRequestClose");
-  directEvents["topShow"] = folly::dynamic::object("registrationName", "onShow");
-  return directEvents;
+
+  writer.WritePropertyName(L"topRequestClose");
+  writer.WriteObjectBegin();
+  winrt::Microsoft::ReactNative::WriteProperty(writer, L"registrationName", L"onRequestClose");
+  writer.WriteObjectEnd();
+
+  writer.WritePropertyName(L"topShow");
+  writer.WriteObjectBegin();
+  winrt::Microsoft::ReactNative::WriteProperty(writer, L"registrationName", L"onShow");
+  writer.WriteObjectEnd();
 }
 
 } // namespace react::uwp
