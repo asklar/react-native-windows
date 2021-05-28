@@ -14,7 +14,6 @@
 #include <Views/FrameworkElementViewManager.h>
 #include <Views/ShadowNodeBase.h>
 #include "ReactHost/React.h"
-
 #include "winrt/Microsoft.ReactNative.h"
 
 namespace winrt::Microsoft::ReactNative {
@@ -65,6 +64,12 @@ class ABIViewManager : public ::Microsoft::ReactNative::FrameworkElementViewMana
     return m_viewManagerRequiresNativeLayout != nullptr && m_viewManagerRequiresNativeLayout.RequiresNativeLayout();
   }
 
+  int64_t HitTest(const xaml::Input::PointerRoutedEventArgs& args, const ::Microsoft::ReactNative::XamlView& view) override {
+    if (auto vmWithHitTest = m_viewManager.try_as<IViewManagerWithHitTesting>()) {
+      return vmWithHitTest.HitTest(args, view.try_as<xaml::FrameworkElement>());
+    }
+    return 0;
+  }
  protected:
   xaml::DependencyObject CreateViewCore(int64_t, const winrt::Microsoft::ReactNative::JSValueObject &props) override;
 

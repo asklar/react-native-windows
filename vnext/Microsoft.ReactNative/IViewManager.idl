@@ -63,4 +63,10 @@ namespace Microsoft.ReactNative
   interface IViewManagerCreateWithProperties {
     Object CreateViewWithProperties(IJSValueReader propertyMapReader);
   };
+
+  [webhosthidden]
+  DOC_STRING("Enables a view manager to provide custom hit-testing logic for finer-grained control.")
+  interface IViewManagerWithHitTesting {
+    Int64 HitTest(XAML_NAMESPACE.Input.PointerRoutedEventArgs args, XAML_NAMESPACE.FrameworkElement view);
+  };
 } // namespace Microsoft.ReactNative
