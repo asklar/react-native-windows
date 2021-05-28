@@ -13,6 +13,8 @@
 #include <UI.Xaml.Automation.h>
 #include <UI.Xaml.Controls.h>
 #include <UI.Xaml.Documents.h>
+#include <UI.Xaml.Input.h>
+#include <UI.Input.h>
 #include <Utils/PropertyUtils.h>
 #include <Utils/TransformableText.h>
 #include <Utils/ValueUtils.h>
@@ -289,5 +291,76 @@ TextTransform TextViewManager::GetTextTransformValue(ShadowNodeBase *node) {
 
   return TextTransform::Undefined;
 }
+
+
+int64_t TextViewManager::HitTest(
+    const winrt::Windows::UI::Xaml::Input::PointerRoutedEventArgs &args,
+    const XamlView &sourceElement) {
+  // If a TextBlock was the UIElement event source, perform a more accurate hit test,
+  // searching for the tag of the nested Run/Span XAML elements that the user actually clicked.
+  // This is to support nested <Text> elements in React.
+  // Nested React <Text> elements get translated into nested XAML <Span> elements,
+  // while the content of the <Text> becomes a list of XAML <Run> elements.
+  // However, we should report the Text element as the target, not the contexts of the text.
+  int64_t tag{0};
+  if (const auto textBlock = sourceElement.try_as<xaml::Controls::TextBlock>()) {
+    const auto pointerPos = args.GetCurrentPoint(textBlock).RawPosition();
+    const auto inlines = textBlock.Inlines().GetView();
+
+    bool isHit = false;
+    const auto finerTag = TestHit(inlines, pointerPos, isHit);
+    if (finerTag) {
+      tag = finerTag.GetInt64();
+    }
+  }
+  return tag;
+}
+
+winrt::IPropertyValue TextViewManager::TestHit(
+    const winrt::Collections::IVectorView<xaml::Documents::Inline> &inlines,
+    const winrt::Point &pointerPos,
+    bool &isHit) {
+  winrt::IPropertyValue tag(nullptr);
+
+  for (const auto &el : inlines) {
+    if (const auto span = el.try_as<xaml::Documents::Span>()) {
+      auto resTag = TestHit(span.Inlines().GetView(), pointerPos, isHit);
+
+      if (resTag)
+        return resTag;
+
+      if (isHit) {
+        tag = el.GetValue(xaml::FrameworkElement::TagProperty()).try_as<winrt::IPropertyValue>();
+        if (tag) {
+          return tag;
+        }
+      }
+    } else if (const auto run = el.try_as<xaml::Documents::Run>()) {
+      const auto start = el.ContentStart();
+      const auto end = el.ContentEnd();
+
+      auto startRect = start.GetCharacterRect(xaml::Documents::LogicalDirection::Forward);
+      auto endRect = end.GetCharacterRect(xaml::Documents::LogicalDirection::Forward);
+
+      // Swap rectangles in RTL scenarios.
+      if (startRect.X > endRect.X) {
+        const auto tempRect = startRect;
+        startRect = endRect;
+        endRect = tempRect;
+      }
+
+      // Approximate the bounding rect (for now, don't account for text wrapping).
+      if ((startRect.X <= pointerPos.X) && (endRect.X + endRect.Width >= pointerPos.X) &&
+          (startRect.Y <= pointerPos.Y) && (endRect.Y + endRect.Height >= pointerPos.Y)) {
+        isHit = true;
+        return nullptr;
+      }
+    }
+  }
+
+  return tag;
+}
+
+
 
 } // namespace Microsoft::ReactNative

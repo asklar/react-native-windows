@@ -16,6 +16,7 @@
 #endif
 
 namespace winrt {
+  
 using namespace Windows::UI;
 using namespace xaml;
 using namespace xaml::Controls;

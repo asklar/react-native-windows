@@ -28,6 +28,8 @@ class TextViewManager : public FrameworkElementViewManager {
 
   TextTransform GetTextTransformValue(ShadowNodeBase *node);
 
+  int64_t HitTest(const xaml::Input::PointerRoutedEventArgs &args, const XamlView &view) override;
+
  protected:
   bool UpdateProperty(
       ShadowNodeBase *nodeToUpdate,
@@ -35,6 +37,12 @@ class TextViewManager : public FrameworkElementViewManager {
       const winrt::Microsoft::ReactNative::JSValue &propertyValue) override;
 
   XamlView CreateViewCore(int64_t tag, const winrt::Microsoft::ReactNative::JSValueObject &) override;
+
+ private:
+  winrt::IPropertyValue TestHit(
+      const winrt::Collections::IVectorView<xaml::Documents::Inline> &inlines,
+      const winrt::Point &pointerPos,
+      bool &isHit);
 };
 
 } // namespace Microsoft::ReactNative

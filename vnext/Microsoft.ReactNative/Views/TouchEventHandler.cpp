@@ -45,23 +45,21 @@ TouchEventHandler::~TouchEventHandler() {
 }
 
 void TouchEventHandler::AddTouchHandlers(XamlView xamlView) {
-  auto uiElement(xamlView.as<xaml::UIElement>());
-  if (uiElement == nullptr) {
+  if (auto uiElement = xamlView.try_as<xaml::UIElement>()){
+    m_xamlView = xamlView;
+
+    RemoveTouchHandlers();
+
+    m_pressedRevoker = uiElement.PointerPressed(winrt::auto_revoke, {this, &TouchEventHandler::OnPointerPressed});
+    m_releasedRevoker = uiElement.PointerReleased(winrt::auto_revoke, {this, &TouchEventHandler::OnPointerReleased});
+    m_canceledRevoker = uiElement.PointerCanceled(winrt::auto_revoke, {this, &TouchEventHandler::OnPointerCanceled});
+    m_captureLostRevoker =
+        uiElement.PointerCaptureLost(winrt::auto_revoke, {this, &TouchEventHandler::OnPointerCaptureLost});
+    m_exitedRevoker = uiElement.PointerExited(winrt::auto_revoke, {this, &TouchEventHandler::OnPointerExited});
+    m_movedRevoker = uiElement.PointerMoved(winrt::auto_revoke, {this, &TouchEventHandler::OnPointerMoved});
+  } else {
     assert(false);
-    return;
   }
-
-  m_xamlView = xamlView;
-
-  RemoveTouchHandlers();
-
-  m_pressedRevoker = uiElement.PointerPressed(winrt::auto_revoke, {this, &TouchEventHandler::OnPointerPressed});
-  m_releasedRevoker = uiElement.PointerReleased(winrt::auto_revoke, {this, &TouchEventHandler::OnPointerReleased});
-  m_canceledRevoker = uiElement.PointerCanceled(winrt::auto_revoke, {this, &TouchEventHandler::OnPointerCanceled});
-  m_captureLostRevoker =
-      uiElement.PointerCaptureLost(winrt::auto_revoke, {this, &TouchEventHandler::OnPointerCaptureLost});
-  m_exitedRevoker = uiElement.PointerExited(winrt::auto_revoke, {this, &TouchEventHandler::OnPointerExited});
-  m_movedRevoker = uiElement.PointerMoved(winrt::auto_revoke, {this, &TouchEventHandler::OnPointerMoved});
 }
 
 void TouchEventHandler::RemoveTouchHandlers() {
@@ -540,93 +538,44 @@ bool TouchEventHandler::TagFromOriginalSource(
   assert(pTag != nullptr);
   assert(pSourceElement != nullptr);
 
-  // Find the React element that triggered the input event
-  xaml::UIElement sourceElement = args.OriginalSource().try_as<xaml::UIElement>();
-  winrt::IPropertyValue tag(nullptr);
+  if (auto nativeUiManager = GetNativeUIManager(*m_context).lock()) {
+    auto puiManagerHost = nativeUiManager->getHost();
+    
+    
+    // Find the React element that triggered the input event
+    xaml::UIElement sourceElement = args.OriginalSource().try_as<xaml::UIElement>();
+    int64_t tag{0};
 
-  while (sourceElement) {
-    auto tagValue = sourceElement.ReadLocalValue(xaml::FrameworkElement::TagProperty());
-    if (tagValue != xaml::DependencyProperty::UnsetValue()) {
-      tag = tagValue.try_as<winrt::IPropertyValue>();
-      // If a TextBlock was the UIElement event source, perform a more accurate hit test,
-      // searching for the tag of the nested Run/Span XAML elements that the user actually clicked.
-      // This is to support nested <Text> elements in React.
-      // Nested React <Text> elements get translated into nested XAML <Span> elements,
-      // while the content of the <Text> becomes a list of XAML <Run> elements.
-      // However, we should report the Text element as the target, not the contexts of the text.
-      if (const auto textBlock = sourceElement.try_as<xaml::Controls::TextBlock>()) {
-        const auto pointerPos = args.GetCurrentPoint(textBlock).RawPosition();
-        const auto inlines = textBlock.Inlines().GetView();
+    while (sourceElement) {
+      auto tagValue = sourceElement.ReadLocalValue(xaml::FrameworkElement::TagProperty());
+      if (tagValue != xaml::DependencyProperty::UnsetValue()) {
+        tag = tagValue.try_as<winrt::IPropertyValue>().GetInt64();
 
-        bool isHit = false;
-        const auto finerTag = TestHit(inlines, pointerPos, isHit);
-        if (finerTag) {
+        auto shadowNode = puiManagerHost->FindShadowNodeForTag(tag);
+        if (const auto finerTag = shadowNode->m_viewManager->HitTest(args, sourceElement)) {
           tag = finerTag;
         }
+        break;
       }
 
-      break;
+      sourceElement = winrt::VisualTreeHelper::GetParent(sourceElement).try_as<xaml::UIElement>();
     }
 
-    sourceElement = winrt::VisualTreeHelper::GetParent(sourceElement).try_as<xaml::UIElement>();
-  }
-
-  if (tag == nullptr) {
-    // If the root view fails to be fully created, then the Tag property will
-    // never be set. This can happen,
-    //  for example, when the red box error box is shown.
-    return false;
-  }
-
-  *pTag = tag.GetInt64();
-  *pSourceElement = sourceElement;
-  return true;
-}
-
-winrt::IPropertyValue TouchEventHandler::TestHit(
-    const winrt::Collections::IVectorView<xaml::Documents::Inline> &inlines,
-    const winrt::Point &pointerPos,
-    bool &isHit) {
-  winrt::IPropertyValue tag(nullptr);
-
-  for (const auto &el : inlines) {
-    if (const auto span = el.try_as<xaml::Documents::Span>()) {
-      auto resTag = TestHit(span.Inlines().GetView(), pointerPos, isHit);
-
-      if (resTag)
-        return resTag;
-
-      if (isHit) {
-        tag = el.GetValue(xaml::FrameworkElement::TagProperty()).try_as<winrt::IPropertyValue>();
-        if (tag) {
-          return tag;
-        }
-      }
-    } else if (const auto run = el.try_as<xaml::Documents::Run>()) {
-      const auto start = el.ContentStart();
-      const auto end = el.ContentEnd();
-
-      auto startRect = start.GetCharacterRect(xaml::Documents::LogicalDirection::Forward);
-      auto endRect = end.GetCharacterRect(xaml::Documents::LogicalDirection::Forward);
-
-      // Swap rectangles in RTL scenarios.
-      if (startRect.X > endRect.X) {
-        const auto tempRect = startRect;
-        startRect = endRect;
-        endRect = tempRect;
-      }
-
-      // Approximate the bounding rect (for now, don't account for text wrapping).
-      if ((startRect.X <= pointerPos.X) && (endRect.X + endRect.Width >= pointerPos.X) &&
-          (startRect.Y <= pointerPos.Y) && (endRect.Y + endRect.Height >= pointerPos.Y)) {
-        isHit = true;
-        return nullptr;
-      }
+    if (tag == 0) {
+      // If the root view fails to be fully created, then the Tag property will
+      // never be set. This can happen,
+      //  for example, when the red box error box is shown.
+      return false;
     }
+
+    *pTag = tag;
+    *pSourceElement = sourceElement;
+    return true;
   }
 
-  return tag;
+  return false;
 }
+
 
 //
 // Retreives the path of nodes from an element to the root.

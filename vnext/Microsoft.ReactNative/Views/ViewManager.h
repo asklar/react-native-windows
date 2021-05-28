@@ -5,6 +5,7 @@
 
 #include <JSValue.h>
 #include <cxxreact/CxxModule.h>
+#include <XamlView.h>
 
 namespace Microsoft::ReactNative {
 
@@ -28,6 +29,9 @@ class IViewManager {
 
   virtual bool RequiresNativeLayout() const {
     return false;
+  }
+  virtual int64_t HitTest(const xaml::Input::PointerRoutedEventArgs &args, const XamlView &view) {
+    return 0;
   }
 };
 
