@@ -246,17 +246,9 @@ export async function copyProjectTemplateAndReplace(
     jsEnginePropsPath,
   );
 
-  const csNugetPackages: NugetPackage[] = [
-    {
-      id: 'Microsoft.NETCore.UniversalWindowsPlatform',
-      version: '6.2.9',
-    },
-    /* #7225 ReactNative.Hermes.Windows is not yet seen as compatible for usage in C# projects
-    {
-      id: 'ReactNative.Hermes.Windows',
-      version: hermesVersion,
-    }, */
-  ];
+  const csNugetPackages: NugetPackage[] = options.useWinUI3
+    ? getReunionPackages(nugetVersion)
+    : getUwpCsPackages();
 
   const cppNugetPackages: CppNugetPackage[] = [
     {
@@ -273,25 +265,6 @@ export async function copyProjectTemplateAndReplace(
       hasTargets: true,
     },
   ];
-
-  if (options.useWinUI3) {
-    csNugetPackages.push({
-      id: 'Microsot.ReactNative.ProjectReunion',
-      version: nugetVersion,
-    });
-
-    const reunionVersion = '0.8.0';
-    for (const pkg of [
-      'Microsoft.ProjectReunion',
-      'Microsoft.ProjectReunion.Foundation',
-      'Microsoft.ProjectReunion.WinUI',
-    ]) {
-      csNugetPackages.push({
-        id: pkg,
-        version: reunionVersion,
-      });
-    }
-  }
 
   if (options.experimentalNuGetDependency) {
     csNugetPackages.push({
@@ -636,6 +609,15 @@ export async function copyProjectTemplateAndReplace(
   }
 }
 
+function getUwpCsPackages(): NugetPackage[] {
+  return [
+    {
+      id: 'Microsoft.NETCore.UniversalWindowsPlatform',
+      version: '6.2.9',
+    },
+  ];
+}
+
 function toCppNamespace(namespace: string) {
   return namespace.replace(/\./g, '::');
 }
@@ -704,4 +686,24 @@ export async function installScriptsAndDependencies(options: {
       options.verbose ? {stdio: 'inherit'} : {},
     );
   }
+}
+function getReunionPackages(nugetVersion: string): NugetPackage[] {
+  const reunionPackages: NugetPackage[] = [];
+  reunionPackages.push({
+    id: 'Microsoft.ReactNative.ProjectReunion',
+    version: nugetVersion,
+  });
+
+  const reunionVersion = '0.8.0';
+  for (const pkg of [
+    'Microsoft.ProjectReunion',
+    'Microsoft.ProjectReunion.Foundation',
+    'Microsoft.ProjectReunion.WinUI',
+  ]) {
+    reunionPackages.push({
+      id: pkg,
+      version: reunionVersion,
+    });
+  }
+  return reunionPackages;
 }
